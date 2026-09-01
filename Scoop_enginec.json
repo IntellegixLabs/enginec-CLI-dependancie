@@ -1,0 +1,14 @@
+{
+    "version": "0.0.1",
+    "description": "EngineC compiler - transpile .ec files to Lua",
+    "homepage": "https://github.com/IntellegixLabs/enginec-CLI-dependancie",
+    "license": "MIT",
+    "url": "https://github.com/IntellegixLabs/enginec-CLI-dependancie/archive/refs/tags/v0.0.1.zip",
+    "hash": "sha256:9d8f8c6a6f2c1b5a4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f",
+    "depends": "nodejs",
+    "bin": "cli/enginec",
+    "checkver": "github",
+    "autoupdate": {
+        "url": "https://github.com/IntellegixLabs/enginec-CLI-dependancie/archive/refs/tags/v$version.zip"
+    }
+}
