@@ -1,0 +1,27 @@
+{
+  "name": "enginec",
+  "version": "0.0.1",
+  "description": "EngineC compiler toolchain with CLI and VS Code extension",
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/enginec"
+  },
+  "keywords": [
+    "compiler",
+    "enginec",
+    "lua",
+    "vscode",
+    "language"
+  ],
+  "scripts": {
+    "compile:extension": "cd vscode-extension && npm run compile",
+    "watch:extension": "cd vscode-extension && npm run watch",
+    "package:extension": "cd vscode-extension && npm run package",
+    "test:extension": "cd vscode-extension && npm test"
+  },
+  "workspaces": [
+    "vscode-extension"
+  ]
+}

@@ -1,0 +1,37 @@
+# Node.js
+node_modules/
+npm-debug.log*
+package-lock.json
+yarn.lock
+
+# TypeScript
+*.js
+*.map
+out/
+dist/
+
+# VS Code
+.vscode/
+*.vsix
+.DS_Store
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# Build outputs
+*.o
+*.a
+*.so
+*.dylib
+
+# Generated files
+*.lua
+.env
+.env.local
+
+# OS
+Thumbs.db
+.DS_Store

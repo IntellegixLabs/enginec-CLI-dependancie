@@ -1,0 +1,88 @@
+{
+  "name": "EngineC",
+  "scopeName": "source.ec",
+  "fileTypes": ["ec"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#preprocessor" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#numbers" },
+    { "include": "#functions" },
+    { "include": "#identifiers" }
+  ],
+  "repository": {
+    "preprocessor": {
+      "patterns": [
+        {
+          "name": "keyword.control.import.ec",
+          "match": "^\\s*#include\\s+[A-Za-z_][A-Za-z0-9_\\.]*\\s*,?\\s*$"
+        },
+        {
+          "name": "keyword.control.using.ec",
+          "match": "^\\s*using\\s+[A-Za-z_][A-Za-z0-9_]*\\s*(from\\s+[A-Za-z_][A-Za-z0-9_]*)?\\s*;?\\s*$"
+        }
+      ]
+    },
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.ec",
+          "match": "(//).*$",
+          "captures": {
+            "1": { "name": "punctuation.definition.comment.ec" }
+          }
+        },
+        {
+          "name": "comment.block.ec",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "captures": {
+            "0": { "name": "punctuation.definition.comment.ec" }
+          }
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.ec",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            { "name": "constant.character.escape.ec", "match": "\\\\." }
+          ]
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        { "name": "keyword.control.ec", "match": "\\b(if|else|for|while|return|break|continue|switch|case|default|class|static|enum|public|private|protected|namespace|plugin|using|from|function|end|new|delete|try|catch|finally|throw|true|false|nil)\\b" },
+        { "name": "keyword.operator.ec", "match": "(=|==|!=|<=|>=|<|>|\\+|-|\\*|/|%|&&|\\|\\||!|\\.|::|;|,|:|\\{|\\}|\\(|\\)|\\[|\\])" }
+      ]
+    },
+    "types": {
+      "patterns": [
+        { "name": "support.type.ec", "match": "\\b(var|int|float|double|bool|string|void|any|array|object|vector|maybe|char|byte|short|long|uint|ulong|const|let)\\b" }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.ec", "match": "\\b(-?\\d+(\\.\\d+)?)\\b" }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        { "name": "entity.name.function.ec", "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\s*(?=\\()" },
+        { "name": "entity.name.function.ec", "match": "\\bpublic\\s+[A-Za-z_][A-Za-z0-9_]*\\s+[A-Za-z_][A-Za-z0-9_]*" }
+      ]
+    },
+    "identifiers": {
+      "patterns": [
+        { "name": "entity.name.type.ec", "match": "\\b[A-Z][A-Za-z0-9_]*\\b" },
+        { "name": "variable.other.ec", "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b" }
+      ]
+    }
+  }
+}
