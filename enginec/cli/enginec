@@ -1,0 +1,208 @@
+#!/usr/bin/env node
+const fs = require('fs');
+const path = require('path');
+
+function usage() {
+  console.log('Usage: enginec <command> [args]');
+  console.log('Commands:');
+  console.log('  comp <file>     Compile an EngineC source file');
+  console.log('  --help          Show help');
+}
+
+function fail(msg) {
+  console.error(msg);
+  process.exit(1);
+}
+
+function isValidEngineCLine(line) {
+  const trimmed = line.trim();
+  if (!trimmed) return true;
+  if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) return true;
+  if (trimmed === 'end') return true;
+  if (/^(?:#include|include)\s+[A-Za-z_][A-Za-z0-9_\.]*\s*,?\s*$/.test(trimmed)) return true;
+  if (/^using\s+[A-Za-z_][A-Za-z0-9_]*\s*(from\s+[A-Za-z_][A-Za-z0-9_]*)?\s*;?\s*$/.test(trimmed)) return true;
+  if (/^#\s*$/.test(trimmed)) return true;
+  if (/^public\s+[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*#?\s*$/.test(trimmed)) return true;
+  if (/^public\s+[A-Za-z_][A-Za-z0-9_]*\s+[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*#?\s*$/.test(trimmed)) return true;
+  if (/^public\s+[A-Za-z_][A-Za-z0-9_]*\s*:\s*\[[^\]]+\]\s*=\s*.+\s*$/.test(trimmed)) return true;
+  if (/^class\s+[A-Za-z_][A-Za-z0-9_]*\s*$/.test(trimmed)) return true;
+  if (/^static\s+class\s+[A-Za-z_][A-Za-z0-9_]*\s*$/.test(trimmed)) return true;
+  if (/^enum\s+[A-Za-z_][A-Za-z0-9_]*\s*\[[^\]]*\]\s*$/.test(trimmed)) return true;
+  if (/^namespace\s+[A-Za-z_][A-Za-z0-9_]*\s*$/.test(trimmed)) return true;
+  if (/^plugin\s+[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*\s*(\[[^\]]*\])?\s*$/.test(trimmed)) return true;
+  if (/^var\s+[A-Za-z_][A-Za-z0-9_]*\s*:\s*(int|float|double|bool|string|void|maybe|array|object|vector)\s*(=\s*.+)?\s*;?\s*$/.test(trimmed)) return true;
+  if (/^[A-Za-z_][A-Za-z0-9_]*\s*:\s*(int|float|double|bool|string|void|maybe|array|object|vector)\s*(=\s*.+)?\s*;?\s*$/.test(trimmed)) return true;
+  if (/^object\s+[A-Za-z_][A-Za-z0-9_]*\s*\[[^\]]*\]\s*$/.test(trimmed)) return true;
+  if (/^on\.[A-Za-z_][A-Za-z0-9_]*\s*(\[[^\]]*\])?\s*$/.test(trimmed)) return true;
+  if (/^(if|else|for|while|return|break|continue|switch|case|default|new|delete|try|catch|finally|throw)\b/.test(trimmed)) return true;
+  if (/^\{\s*$|^\}\s*$|^\(\s*$|^\)\s*$|^\[\s*$|^\]\s*$/.test(trimmed)) return true;
+  if (/^[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*;?\s*$/.test(trimmed)) return true;
+  if (/^[A-Za-z_][A-Za-z0-9_]*\s*=\s*.+;?\s*$/.test(trimmed)) return true;
+  if (/^(\d+|\d+\.\d+|".*"|'.*'|true|false|nil)\b/.test(trimmed)) return true;
+  if (/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*\s*\[[^\]]*\]\s*$/.test(trimmed)) return true;
+  if (/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*\s*:\s*:\s*>>\s*.+\s*<<\s*$/.test(trimmed)) return true;
+  return false;
+}
+
+function convertEcToLua(sourceText) {
+  const lines = sourceText.split(/\r?\n/);
+  const out = [];
+  let inFunction = false;
+  let currentFunctionBody = [];
+
+  const flushFunction = () => {
+    if (!inFunction) return;
+    out.push('function ' + currentFunctionBody.shift());
+    for (const entry of currentFunctionBody) {
+      out.push(entry);
+    }
+    out.push('end');
+    currentFunctionBody = [];
+    inFunction = false;
+  };
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line || /^#include\b|^include\b|^using\b|^#\s*$/.test(line)) continue;
+
+    if (/^class\s+([A-Za-z_][A-Za-z0-9_]*)\s*$/.test(line)) {
+      const className = line.match(/^class\s+([A-Za-z_][A-Za-z0-9_]*)\s*$/)[1];
+      out.push(`local ${className} = {}`);
+      continue;
+    }
+
+    if (/^end\s*$/.test(line)) {
+      if (inFunction) {
+        currentFunctionBody.push('end');
+        out.push(...currentFunctionBody);
+        currentFunctionBody = [];
+        inFunction = false;
+      }
+      continue;
+    }
+
+    const publicFunc = line.match(/^public\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*)\)\s*$/);
+    if (publicFunc) {
+      const name = publicFunc[1];
+      const args = publicFunc[2].trim();
+      const fnText = `function ${name}(${args})`;
+      if (inFunction) {
+        currentFunctionBody.push(fnText);
+      } else {
+        out.push(fnText);
+        inFunction = true;
+      }
+      continue;
+    }
+
+    const publicMethod = line.match(/^public\s+([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*)\)\s*$/);
+    if (publicMethod) {
+      const owner = publicMethod[1];
+      const name = publicMethod[2];
+      const args = publicMethod[3].trim();
+      const fnText = `function ${owner}.${name}(${args})`;
+      if (inFunction) {
+        currentFunctionBody.push(fnText);
+      } else {
+        out.push(fnText);
+        inFunction = true;
+      }
+      continue;
+    }
+
+    const varDecl = line.match(/^var\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?:int|float|double|bool|string|void|maybe|array|object|vector)\s*(?:=\s*(.*))?\s*;?$/);
+    if (varDecl) {
+      const name = varDecl[1];
+      const rhs = (varDecl[2] ?? 'nil').trim();
+      const statement = `local ${name} = ${rhs === 'nil' ? 'nil' : rhs}`;
+      if (inFunction) {
+        currentFunctionBody.push(statement);
+      } else {
+        out.push(statement);
+      }
+      continue;
+    }
+
+    if (/^return\b/.test(line)) {
+      if (inFunction) currentFunctionBody.push(line); else out.push(line);
+      continue;
+    }
+
+    if (/^if\b|^else\b|^for\b|^while\b|^switch\b|^case\b|^break\b|^continue\b|^throw\b|^try\b|^catch\b|^finally\b/.test(line)) {
+      if (inFunction) currentFunctionBody.push(line); else out.push(line);
+      continue;
+    }
+
+    const assign = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)\s*;?$/);
+    if (assign) {
+      const statement = `${assign[1]} = ${assign[2]}`;
+      if (inFunction) currentFunctionBody.push(statement); else out.push(statement);
+      continue;
+    }
+
+    const bareCall = line.match(/^([A-Za-z_][A-Za-z0-9_]*)(?:\([^)]*\))\s*;?$/);
+    if (bareCall) {
+      const statement = `${bareCall[1]}()`;
+      if (inFunction) currentFunctionBody.push(statement); else out.push(statement);
+      continue;
+    }
+
+    if (line.length > 0) {
+      if (inFunction) currentFunctionBody.push(`-- Untranslated: ${line}`); else out.push(`-- Untranslated: ${line}`);
+    }
+  }
+
+  if (inFunction) {
+    out.push('end');
+  }
+
+  return out.join('\n');
+}
+
+const args = process.argv.slice(2);
+if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
+  usage();
+  process.exit(0);
+}
+
+if (args[0] === 'comp') {
+  const file = args[1];
+  if (!file) {
+    fail('enginec: missing file path for `comp`');
+  }
+
+  const resolved = path.resolve(file);
+  if (!fs.existsSync(resolved)) {
+    fail(`enginec: file not found: ${resolved}`);
+  }
+
+  const text = fs.readFileSync(resolved, 'utf8');
+  const trimmed = text.trim();
+
+  if (trimmed.length === 0) {
+    console.log('Compilation successful');
+    const outPath = path.join(path.dirname(resolved), `${path.basename(resolved, path.extname(resolved))}.lua`);
+    fs.writeFileSync(outPath, '-- Auto-generated by EngineC\nreturn {}\n', 'utf8');
+    console.log(outPath);
+    process.exit(0);
+  }
+
+  const lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!isValidEngineCLine(line)) {
+      console.error(`${resolved}:${i + 1}:1: error: unexpected token near ${JSON.stringify(line.trim())}`);
+      process.exit(1);
+    }
+  }
+
+  const outPath = path.join(path.dirname(resolved), `${path.basename(resolved, path.extname(resolved))}.lua`);
+  const generatedLua = convertEcToLua(text);
+
+  fs.writeFileSync(outPath, generatedLua, 'utf8');
+  console.log('Compilation successful');
+  console.log(outPath);
+  process.exit(0);
+}
+
+fail(`enginec: unknown command: ${args[0]}`);

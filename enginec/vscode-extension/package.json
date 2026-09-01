@@ -1,0 +1,56 @@
+{
+  "name": "vscode-ec",
+  "displayName": "EngineC (.ec) Language",
+  "description": "VS Code extension and Language Server for .ec files (EngineC). Provides compile diagnostics and basic LSP features.",
+  "version": "0.0.1",
+  "publisher": "your-name",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "activationEvents": [
+    "onLanguage:ec"
+  ],
+  "main": "./out/src/extension.js",
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -p ./ -w",
+    "smoke:test": "node ./scripts/check-build-output.js",
+    "prepack": "npm run compile && npm run smoke:test",
+    "pretest": "npm run compile",
+    "test": "npm run smoke:test",
+    "package": "npx @vscode/vsce package"
+  },
+  "devDependencies": {
+    "typescript": "^4.0.0",
+    "@types/node": "^14.0.0",
+    "vscode": "^1.1.37",
+    "@types/vscode": "^1.60.0",
+    "vscode-test": "^1.4.0",
+    "@vscode/vsce": "^2.26.0"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^8.0.0",
+    "vscode-languageserver": "^8.0.0",
+    "vscode-languageserver-protocol": "^3.17.0",
+    "vscode-languageserver-textdocument": "^1.0.1"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "ec",
+        "aliases": ["EngineC", "ec"],
+        "extensions": [".ec"],
+        "configuration": "./language-configuration.json",
+        "tmLanguage": "./syntaxes/ec.tmLanguage.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "ec",
+        "scopeName": "source.ec",
+        "path": "./syntaxes/ec.tmLanguage.json"
+      }
+    ]
+  }
+}
